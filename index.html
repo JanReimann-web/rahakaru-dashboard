@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="et">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Rahakaru</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+
+  <style>
+    :root{
+      --bg:#1e293b; --surface:#0f172a; --muted:#94a3b8; --text:#f1f5f9;
+      --border:#334155; --blue:#3b82f6; --good:#22c55e; --warn:#f59e0b; --bad:#ef4444;
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif}
+    a{color:inherit;text-decoration:none}
+    .container{max-width:1100px;margin:0 auto;padding:16px}
+    h1{margin:8px 0 18px;text-align:center;font-size:32px}
+
+    .grid{display:grid;gap:16px}
+    @media (min-width:900px){ .grid-3{grid-template-columns:1fr 1fr 1fr} }
+
+    .card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px}
+    .tight{padding:12px}
+
+    /* Budget Overview */
+    .budget-overview{padding:6px 0}
+    .budget-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;gap:12px}
+    .budget-amounts{display:flex;flex-direction:column;align-items:flex-end;gap:2px}
+    .remaining{font-size:32px;font-weight:800;color:var(--text);line-height:1}
+    .total{font-size:16px;color:var(--muted);font-weight:500}
+   
+    .progress-container{margin:24px 0}
+    .progress-bar{height:14px;background:var(--border);border-radius:7px;overflow:hidden;position:relative}
+    .progress-fill{height:100%;background:linear-gradient(90deg, var(--good) 0%, #f59e0b 50%, var(--bad) 100%);border-radius:7px;transition:width 0.3s ease}
+    .progress-labels{display:flex;justify-content:space-between;margin-top:8px;font-size:13px;color:var(--muted)}
+   
+    .budget-stats{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:20px}
+    .stat-item{text-align:center;padding:8px}
+    .stat-label{display:block;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:6px}
+    .stat-value{display:block;font-size:18px;font-weight:700}
+   
+    /* Mobiili jaoks */
+    @media (max-width: 480px) {
+      .budget-header{flex-direction:column;align-items:stretch;gap:8px}
+      .budget-amounts{align-items:flex-start}
+      .remaining{font-size:28px}
+      .total{font-size:15px}
+      .budget-stats{gap:12px;margin-top:16px}
+      .stat-value{font-size:16px}
+    }
+
+    /* Stat & buttons */
+    .stat{display:flex;align-items:center;justify-content:center;min-height:72px;border-radius:12px}
+   
+    /* Add button */
+    .add-button-card{display:flex;align-items:center;justify-content:center;min-height:72px}
+    .add-button{
+      display:flex;align-items:center;justify-content:center;gap:8px;
+      background:var(--blue);border:none;color:#fff;font-weight:700;
+      border-radius:20px;padding:16px 24px;cursor:pointer;width:100%;
+      font-size:14px;letter-spacing:0.5px;
+      box-shadow:0 4px 12px rgba(59, 130, 246, 0.3);
+      transition:all 0.2s ease;
+    }
+    .add-button:hover{
+      background:#2563eb;
+      transform:translateY(-1px);
+      box-shadow:0 6px 16px rgba(59, 130, 246, 0.4);
+    }
+    .add-button:active{
+      transform:translateY(0);
+      box-shadow:0 2px 8px rgba(59, 130, 246, 0.3);
+    }
+
+    /* Transactions */
+    .tx-row{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--border);cursor:pointer}
+    .tx-row:last-child{border-bottom:none}
+    .tx-meta{font-size:12px;color:var(--muted)}
+    .tx-amount{font-weight:800}
+    .paperclip{opacity:.7;margin-left:8px}
+
+    .more-btn{margin-top:10px;background:transparent;border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:10px;width:100%}
+
+    /* Accordion */
+    .acc{border:1px solid var(--border);border-radius:12px;overflow:hidden}
+    .acc-head{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;background:#14171b}
+    .acc-body{padding:10px 14px;border-top:1px solid var(--border)}
+    .acc small{color:var(--muted)}
+
+    /* Chart */
+    #catsChart { width:100%; height:360px; max-height:66vh; }
+    @media (min-width:900px){ #catsChart{ height:340px; max-height:420px; } }
+
+    /* Modal */
+    .modal{position:fixed;inset:0;display:none;place-items:center;background:rgba(0,0,0,.6);z-index:50}
+    .modal.open{display:grid}
+    .modal-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;max-width:560px;width:92%}
+    .modal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+    .x{cursor:pointer;font-size:22px;color:var(--muted)}
+    .row2{display:grid;gap:10px}
+    @media (min-width:560px){ .row2{grid-template-columns:1fr 1fr} }
+    .field{display:flex;flex-direction:column;gap:6px}
+    .input,select,textarea{background:#0f1114;border:1px solid var(--border);border-radius:10px;color:var(--text);padding:10px 12px}
+    label{font-size:12px;color:var(--muted)}
+    .modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:12px}
+    .btn{padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:#22272f;color:var(--text);cursor:pointer}
+    .btn-danger{background:#7f1d1d;border-color:#7f1d1d}
+    .btn-ok{background:var(--blue);border-color:var(--blue);color:#fff}
+
+    /* Categories modal */
+    .category-accordion{border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:12px}
+    .category-accordion:last-child{margin-bottom:0}
+    .category-header{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;background:#14171b;cursor:pointer;border-bottom:1px solid var(--border)}
+    .category-header:hover{background:#1a1e24}
+    .category-body{padding:0;max-height:0;overflow:hidden;transition:max-height 0.3s ease}
+    .category-body.open{max-height:500px;padding:12px 0}
+    .category-item{display:flex;justify-content:space-between;align-items:center;padding:10px 16px;border-bottom:1px solid var(--border)}
+    .category-item:last-child{border-bottom:none}
+    .category-item-left{flex:1}
+    .category-item-title{font-weight:600;margin-bottom:2px}
+    .category-item-meta{font-size:12px;color:var(--muted)}
+    .category-item-amount{font-weight:700;font-size:16px}
+
+/* rohkem "õhku" plokkide vahele */
+.container > section { margin-bottom: 16px; }
+@media (min-width: 900px){
+  .container > section { margin-bottom: 20px; }
+}
+
+
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Rahakaru 🐻</h1>
+
+    <!-- Budget Overview -->
+    <section class="card">
+      <div class="budget-overview">
+        <div class="budget-header">
+          <h2 style="margin: 0 0 8px 0; font-size: 18px;">Kuu eelarve</h2>
+          <div class="budget-amounts">
+            <span class="remaining" id="budgetRemaining">—</span>
+          </div>
+        </div>
+       
+        <div class="progress-container">
+          <div class="progress-bar">
+            <div class="progress-fill" id="progressFill"></div>
+          </div>
+          <div class="progress-labels">
+            <span>0€</span>
+            <span id="progressMax">—</span>
+          </div>
+        </div>
+       
+        <div class="budget-stats">
+          <div class="stat-item">
+            <span class="stat-label">Kulutatud</span>
+            <span class="stat-value" id="budgetSpent">—</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Protsent</span>
+            <span class="stat-value" id="budgetPercent">—</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Stats + add button -->
+    <section class="grid grid-3">
+      <div class="card stat tight">
+        <div style="text-align:center">
+          <div style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.12em">Soovituslik päeva limiit</div>
+          <div id="dailyLimit" style="font-weight:800;font-size:22px">—</div>
+        </div>
+      </div>
+      <div class="card stat tight">
+        <div style="text-align:center">
+          <div style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.12em">Päevi kuu lõpuni</div>
+          <div id="daysRemaining" style="font-weight:800;font-size:22px">—</div>
+        </div>
+      </div>
+      <div class="add-button-card">
+        <button id="btnAdd" class="add-button">+ LISA UUS KULU</button>
+      </div>
+    </section>
+
+    <!-- Categories chart -->
+    <section class="card" id="categoriesCard" style="cursor: pointer;">
+      <h3 style="margin:2px 0 10px">Kulud kategooriate lõikes</h3>
+      <canvas id="catsChart"></canvas>
+      <div class="gauge-note" style="margin-top:6px">Vaade: tulev kuu, käesolev + kuni 4 eelmist kuud</div>
+      <div class="gauge-note" style="margin-top:4px; font-style:italic;">Kliki detailseks vaateks</div>
+    </section>
+
+    <!-- Transactions -->
+    <section class="card" id="txSection">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <h3 style="margin:0">Viimased tehingud</h3>
+        <button id="toggleMore" class="more-btn" style="width:auto;padding:6px 10px">Näita rohkem</button>
+      </div>
+      <div id="recentList"></div>
+
+      <div id="archiveWrap" style="display:none;margin-top:14px" class="grid">
+        <div class="acc" id="accFuture" style="display:none">
+          <div class="acc-head"><strong>Tuleviku tehingud</strong><small id="futCount"></small></div>
+          <div class="acc-body" id="futureList"></div>
+        </div>
+        <div id="monthAccordions"></div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Add transaction modal -->
+  <div id="addModal" class="modal">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h3 style="margin:0">Lisa uus kulu</h3>
+        <span class="x" data-close="#addModal">×</span>
+      </div>
+
+      <div class="row2">
+        <div class="field">
+          <label>Summa (€)</label>
+          <input id="add_amount" type="number" step="0.01" class="input" inputmode="decimal" placeholder="0.00">
+        </div>
+        <div class="field">
+          <label>Kuupäev</label>
+          <input id="add_date" class="input" placeholder="pp.kk.aaaa (nt 16.09.2025)">
+        </div>
+      </div>
+
+      <div class="row2" style="margin-top:8px">
+        <div class="field">
+          <label>Kategooria</label>
+          <select id="add_cat" class="input">
+            <option value="">Vali…</option>
+            <option>AUTO</option><option>KORTER</option><option>SÖÖK</option><option>ROBIN</option><option>MUUD</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Alakategooria</label>
+          <select id="add_sub" class="input"><option value="">Vali…</option></select>
+        </div>
+      </div>
+
+      <div class="field" style="margin-top:8px">
+        <label>Kirjeldus</label>
+        <input id="add_desc" class="input" placeholder="Lühikirjeldus">
+      </div>
+
+      <div class="row2" style="margin-top:8px">
+        <div class="field">
+          <label>Korduvus (kuud)</label>
+          <input id="add_repeat" type="number" min="1" value="1" class="input">
+        </div>
+        <div class="field">
+          <label>Kviitung (jpg/pdf)</label>
+          <input id="add_file" type="file" accept="image/*,.pdf" class="input">
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn" data-close="#addModal">Tühista</button>
+        <button id="add_submit" class="btn-ok">Lisa kulu</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit modal -->
+  <div id="editModal" class="modal">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h3 style="margin:0">Muuda tehingut</h3>
+        <span class="x" data-close="#editModal">×</span>
+      </div>
+
+      <input id="edit_id" type="hidden">
+      <div class="row2">
+        <div class="field"><label>Summa (€)</label><input id="edit_amount" type="number" step="0.01" class="input"></div>
+        <div class="field"><label>Kuupäev</label><input id="edit_date" class="input" placeholder="pp.kk.aaaa"></div>
+      </div>
+
+      <div class="row2" style="margin-top:8px">
+        <div class="field"><label>Kategooria</label>
+          <select id="edit_cat" class="input"><option>AUTO</option><option>KORTER</option><option>SÖÖK</option><option>ROBIN</option><option>MUUD</option></select></div>
+        <div class="field"><label>Alakategooria</label>
+          <select id="edit_sub" class="input"></select></div>
+      </div>
+
+      <div class="field" style="margin-top:8px"><label>Kirjeldus</label><input id="edit_desc" class="input"></div>
+     
+      <div class="field" style="margin-top:8px">
+        <label>Kviitung (jpg/pdf)</label>
+        <input id="edit_file" type="file" accept="image/*,.pdf" class="input">
+        <div id="current_receipt" style="margin-top:4px;font-size:12px;color:var(--muted);display:none;">
+          Praegune: <a id="current_receipt_link" href="#" target="_blank" style="color:var(--blue);">Vaata kviitungit</a>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button id="btnDelete" class="btn btn-danger">Kustuta</button>
+        <span style="flex:1"></span>
+        <button class="btn" data-close="#editModal">Sulge</button>
+        <button id="btnSave" class="btn-ok">Salvesta</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Categories breakdown modal -->
+  <div id="categoriesModal" class="modal">
+    <div class="modal-card" style="max-width: 700px; width: 95%;">
+      <div class="modal-head">
+        <h3 style="margin:0">Kulud kategooriate lõikes</h3>
+        <span class="x" data-close="#categoriesModal">×</span>
+      </div>
+
+      <div class="field" style="margin-bottom: 16px;">
+        <label>Periood</label>
+        <select id="categoryPeriod" class="input">
+          <option value="">Vali periood...</option>
+        </select>
+      </div>
+
+      <div id="categoriesContent">
+        <div style="text-align: center; padding: 40px; color: var(--muted);">
+          Vali periood, et näha kulusid kategooriate kaupa
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* ===== KONFIG ===== */
+    const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwHkVCuVSabK5k5hy4MfUWdmyFXNkGWHQODNzF5wvyW3mbDvMflNgBRrpCZZk01UKq7kw/exec';
+
+    // dropdowni alamad
+    const SUBS = {
+      'AUTO':   ['Kütus','Kindlustus','Ülevaatus','Hooldus','Muu'],
+      'SÖÖK':   ['Toidupood','Väljas söömine','Muu'],
+      'KORTER': ['Laen','Kommunaalid','Elekter','Kindlustus','Muu'],
+      'ROBIN':  ['Lasteaiatasu','Trenn/huviringid','Meelelahutus','Muu'],
+      'MUUD':   ['Kodukaubad','Remont','Muu']
+    };
+    const CATS = ['Auto','Söök','Robin','Korter','Muud'];
+
+    let chartRef = null;
+    let archiveData = null;
+
+    /* ===== MODAL OPEN/CLOSE ===== */
+    document.addEventListener('click', (e)=>{
+      const closeSel = e.target.getAttribute?.('data-close');
+      if (closeSel) document.querySelector(closeSel).classList.remove('open');
+    });
+
+    document.getElementById('btnAdd').onclick = ()=> {
+      document.getElementById('add_date').value = formatDateEt(new Date());
+      setVal('add_amount','');
+      setVal('add_cat','');
+      fillSub('#add_sub',''); // puhasta
+      setVal('add_desc','');
+      setVal('add_repeat','1');
+      document.getElementById('add_file').value = '';
+      document.getElementById('addModal').classList.add('open');
+    };
+
+    // dynaamilised alamad (add/edit)
+    document.getElementById('add_cat').addEventListener('change', e=>{
+      fillSub('#add_sub', e.target.value);
+    });
+    document.getElementById('edit_cat').addEventListener('change', e=>{
+      fillSub('#edit_sub', e.target.value);
+    });
+
+    document.getElementById('add_submit').onclick = submitAdd;
+    document.getElementById('btnSave').onclick = submitEdit;
+    document.getElementById('btnDelete').onclick = submitDelete;
+
+    document.getElementById('toggleMore').onclick = () => {
+      const wrap = document.getElementById('archiveWrap');
+      const btn = document.getElementById('toggleMore');
+      const open = wrap.style.display !== 'none';
+      wrap.style.display = open ? 'none' : 'block';
+      btn.textContent = open ? 'Näita rohkem' : 'Näita vähem';
+    };
+
+    // Categories modal
+    document.getElementById('categoriesCard').onclick = () => {
+      document.getElementById('categoriesModal').classList.add('open');
+      loadCategoryPeriods();
+    };
+
+    document.getElementById('categoryPeriod').addEventListener('change', (e) => {
+      if (e.target.value) {
+        loadCategoryBreakdown(e.target.value);
+      }
+    });
+
+    /* ===== LAE ANDMED ===== */
+    document.addEventListener('DOMContentLoaded', () => loadData());
+
+    function loadData(){
+      jsonp(`${WEB_APP_URL}?t=${Date.now()}`)
+        .then(handleData)
+        .catch(err => { console.error(err); alert('Ühenduse viga: ' + err.message); });
+    }
+
+    function handleData(json){
+      if (!json.success) { alert(json.error||'Serveri viga'); return; }
+      const b = json.data.budget;
+      const recent = json.data.recentTransactions || [];
+      const cats = json.data.categoriesByMonth || [];
+      archiveData = json.data.archive || null;
+
+      // Budget Overview
+      updateBudgetDisplay(b);
+
+      // Statid
+      setText('dailyLimit', money0(b.dailyLimit));
+      setText('daysRemaining', String(b.daysRemaining));
+
+      // Recent (5) – summad 2 komaga, kuupäev ET
+      renderRecent(recent);
+
+      // Archive (future + months)
+      buildArchive(archiveData);
+
+      // Chart
+      renderCatsChart(cats);
+    }
+
+    /* ===== RECENT & ARCHIVE ===== */
+    function renderRecent(list){
+      const el = document.getElementById('recentList');
+      const L = list.slice(0,5);
+      if (!L.length){ el.innerHTML = '<div class="gauge-note">Pole ühtegi tehingut.</div>'; return; }
+      el.innerHTML = L.map(renderTx).join('');
+      bindTxClicks(el, L);
+    }
+
+    function buildArchive(arc){
+      if (!arc){ document.getElementById('archiveWrap').style.display='none'; return; }
+      const fut = arc.future || [];
+      const months = arc.months || [];
+
+      const futWrap = document.getElementById('accFuture');
+      if (fut.length){
+        futWrap.style.display = 'block';
+        document.getElementById('futCount').textContent = fut.length;
+        const list = document.getElementById('futureList');
+        list.innerHTML = fut.map(renderTx).join('');
+        bindTxClicks(list, fut);
+      } else {
+        futWrap.style.display='none';
+      }
+
+      const monthsWrap = document.getElementById('monthAccordions');
+      monthsWrap.innerHTML = months.map((m,i)=>`
+        <div class="acc" id="acc_${i}">
+          <div class="acc-head"><strong>${escapeHtml(m.label)}</strong><small>${m.items.length}</small></div>
+          <div class="acc-body" style="${i>0?'display:none':''}">${m.items.map(renderTx).join('')}</div>
+        </div>`).join('');
+
+      months.forEach((m, i) => {
+        const body = document.querySelector(`#acc_${i} .acc-body`);
+        const head = document.querySelector(`#acc_${i} .acc-head`);
+        head.addEventListener('click', ()=> body.style.display = (body.style.display==='none') ? 'block' : 'none');
+        bindTxClicks(body, m.items);
+      });
+
+      document.getElementById('archiveWrap').style.display='none';
+      document.getElementById('toggleMore').textContent='Näita rohkem';
+    }
+
+    function renderTx(tx){
+      const title = escapeHtml(tx.description||'(Ilma kirjelduseta)');
+      const dateEt = toEtFromIso(tx.date||'');
+      const meta = `${escapeHtml(tx.category||'')} / ${escapeHtml(tx.subcategory||'')} • ${escapeHtml(toEtDateStr(tx.date)||'')}`;
+      const clip = tx.receiptUrl ? `<span class="paperclip">📎</span>` : '';
+      return `
+        <div class="tx-row" data-id="${escapeHtml(tx.id||'')}">
+          <div>
+            <div>${title}</div>
+            <div class="tx-meta">${meta}</div>
+          </div>
+          <div class="tx-amount">${money2(tx.amount)}${clip}</div>
+        </div>`;
+    }
+
+    function bindTxClicks(scopeEl, list){
+      scopeEl.querySelectorAll('.tx-row').forEach(row=>{
+        row.addEventListener('click', async ()=>{
+          const id = row.getAttribute('data-id')||'';
+          if (!id) return;
+          try{
+            const data = await jsonp(`${WEB_APP_URL}?action=getTransaction&id=${encodeURIComponent(id)}&t=${Date.now()}`);
+            if (!data.success) throw new Error(data.error||'Viga');
+            fillEditModal(data.data);
+            document.getElementById('editModal').classList.add('open');
+          }catch(err){ alert('Viga: '+err.message); }
+        });
+      });
+    }
+
+    function fillEditModal(tx){
+      setVal('edit_id', tx.id||'');
+      setVal('edit_amount', (Number(tx.amount)||0).toString().replace('.',','));
+      setVal('edit_date', toEtFromIso(tx.date||''));
+      setVal('edit_cat', (tx.category||'').toUpperCase());
+      fillSub('#edit_sub', (tx.category||'').toUpperCase(), tx.subcategory||'');
+      setVal('edit_desc', tx.description||'');
+     
+      // Näita olemasolevat kviitungit
+      const currentReceipt = document.getElementById('current_receipt');
+      const receiptLink = document.getElementById('current_receipt_link');
+      document.getElementById('edit_file').value = ''; // tühjenda faili väli
+     
+      if (tx.receiptUrl && tx.receiptUrl.trim()) {
+        receiptLink.href = tx.receiptUrl;
+        currentReceipt.style.display = 'block';
+      } else {
+        currentReceipt.style.display = 'none';
+      }
+    }
+
+    /* ===== CHART ===== */
+    function renderCatsChart(cats){
+      const ctx = document.getElementById('catsChart').getContext('2d');
+      const labels = cats.map(c=>c.labelShort || c.label || '');
+      const datasets = ['Auto','Söök','Robin','Korter','Muud'].map(cat=>({
+        label: cat,
+        data: cats.map(c=>Number(c.totals?.[cat]||0)),
+        stack: 'stack1'
+      }));
+      if (chartRef) chartRef.destroy();
+      chartRef = new Chart(ctx, {
+        type:'bar',
+        data:{ labels, datasets },
+        options:{
+          responsive:true, maintainAspectRatio:false,
+          plugins:{ legend:{ position:'bottom', labels:{ boxWidth:12 } } },
+          scales:{ x:{ stacked:true }, y:{ stacked:true, beginAtZero:true } }
+        }
+      });
+    }
+
+    /* ===== ADD / EDIT / DELETE ===== */
+    async function submitAdd(){
+      const amount = parseFloat(String(getVal('add_amount')).replace(',','.'))||0;
+      const dateISO= toIsoFromEt(getVal('add_date'));
+      const category = getVal('add_cat');
+      const subcategory = getVal('add_sub');
+      const description = getVal('add_desc');
+      const recurrenceCount = parseInt(getVal('add_repeat')||'1',10);
+      const file = document.getElementById('add_file').files[0];
+
+      if (!amount || !dateISO || !category || !subcategory) {
+        alert('Täida summa, kuupäev, kategooria ja alakategooria.'); return;
+      }
+
+      try{
+        if (file) {
+          const fd = new FormData();
+          fd.append('amount', amount);
+          fd.append('date', dateISO);
+          fd.append('category', category);
+          fd.append('subcategory', subcategory);
+          fd.append('description', description);
+          fd.append('recurrenceCount', String(recurrenceCount));
+          fd.append('receipt', file);
+          await fetch(WEB_APP_URL, { method:'POST', body: fd });
+        } else {
+          // urlencoded => ei teki CORS preflight'i
+          const body = new URLSearchParams({ payload: JSON.stringify({
+            action:'add',
+            amount, date:dateISO, category, subcategory, description, recurrenceCount
+          })});
+          await fetch(WEB_APP_URL, { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'}, body });
+        }
+        document.getElementById('addModal').classList.remove('open');
+        loadData();
+      } catch (err) { alert('Viga: '+err.message); }
+    }
+
+    async function submitEdit(){
+      const file = document.getElementById('edit_file').files[0];
+     
+      try{
+        if (file) {
+          // Kui on uus fail, kasuta multipart/form-data
+          const fd = new FormData();
+          fd.append('action', 'update');
+          fd.append('id', getVal('edit_id'));
+          fd.append('amount', parseFloat(String(getVal('edit_amount')).replace(',','.'))||0);
+          fd.append('date', toIsoFromEt(getVal('edit_date')));
+          fd.append('category', getVal('edit_cat'));
+          fd.append('subcategory', getVal('edit_sub'));
+          fd.append('description', getVal('edit_desc'));
+          fd.append('receipt', file);
+          await fetch(WEB_APP_URL, { method:'POST', body: fd });
+        } else {
+          // Kui faili ei ole, kasuta urlencoded (säilitab olemasoleva kviitungi)
+          const payload = {
+            action:'update',
+            id: getVal('edit_id'),
+            amount: parseFloat(String(getVal('edit_amount')).replace(',','.'))||0,
+            date: toIsoFromEt(getVal('edit_date')),
+            category: getVal('edit_cat'),
+            subcategory: getVal('edit_sub'),
+            description: getVal('edit_desc')
+            // receiptUrl jäetakse välja, et säilitada olemasolev
+          };
+          const body = new URLSearchParams({ payload: JSON.stringify(payload) });
+          await fetch(WEB_APP_URL, {method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},body});
+        }
+        document.getElementById('editModal').classList.remove('open');
+        loadData();
+      }catch(err){ alert('Uuenduse viga: '+err.message); }
+    }
+
+    async function submitDelete(){
+      if (!confirm('Kustuta see tehing?')) return;
+      const payload = { action:'delete', id:getVal('edit_id') };
+      try{
+        const body = new URLSearchParams({ payload: JSON.stringify(payload) });
+        await fetch(WEB_APP_URL, {method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},body});
+        document.getElementById('editModal').classList.remove('open');
+        loadData();
+      }catch(err){ alert('Kustutuse viga: '+err.message); }
+    }
+
+    /* ===== BUDGET DISPLAY ===== */
+    function updateBudgetDisplay(budget){
+      const spent = budget.monthlyBudget - budget.remaining;
+      const pct = budget.monthlyBudget > 0 ? (spent / budget.monthlyBudget) * 100 : 0;
+     
+      // Põhisummad
+      setText('budgetRemaining', money0(budget.remaining));
+      setText('progressMax', money0(budget.monthlyBudget));
+     
+      // Progress bar
+      const progressFill = document.getElementById('progressFill');
+      if (progressFill) {
+        progressFill.style.width = Math.min(100, pct) + '%';
+      }
+     
+      // Järeljäänud summa värv vastavalt progress bar'i väärtusele
+      const remainingEl = document.getElementById('budgetRemaining');
+      if (remainingEl) {
+        let color;
+        if (pct <= 33) {
+          color = '#22c55e'; // roheline
+        } else if (pct <= 66) {
+          color = '#f59e0b'; // kollane
+        } else {
+          color = '#ef4444'; // punane
+        }
+        remainingEl.style.color = color;
+      }
+     
+      // Statistika
+      setText('budgetSpent', money0(spent));
+      setText('budgetPercent', Math.round(pct) + '%');
+    }
+
+    /* ===== CATEGORIES MODAL ===== */
+    async function loadCategoryPeriods() {
+      try {
+        const data = await jsonp(`${WEB_APP_URL}?action=getCategoryPeriods&t=${Date.now()}`);
+        if (!data.success) throw new Error(data.error || 'Viga');
+       
+        const select = document.getElementById('categoryPeriod');
+        select.innerHTML = '<option value="">Vali periood...</option>';
+       
+        data.data.periods.forEach(period => {
+          const option = document.createElement('option');
+          option.value = period.key;
+          option.textContent = period.label;
+          if (period.isCurrent) {
+            option.selected = true;
+            loadCategoryBreakdown(period.key);
+          }
+          select.appendChild(option);
+        });
+      } catch (err) {
+        console.error('Periodide laadimine ebaõnnestus:', err);
+      }
+    }
+
+    async function loadCategoryBreakdown(periodKey) {
+      try {
+        const data = await jsonp(`${WEB_APP_URL}?action=getCategoryBreakdown&period=${encodeURIComponent(periodKey)}&t=${Date.now()}`);
+        if (!data.success) throw new Error(data.error || 'Viga');
+       
+        renderCategoryBreakdown(data.data);
+      } catch (err) {
+        console.error('Kategooriate laadimine ebaõnnestus:', err);
+        document.getElementById('categoriesContent').innerHTML =
+          '<div style="text-align: center; padding: 40px; color: var(--bad);">Viga andmete laadimisel</div>';
+      }
+    }
+
+    function renderCategoryBreakdown(data) {
+      const container = document.getElementById('categoriesContent');
+     
+      if (!data.categories || data.categories.length === 0) {
+        container.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--muted);">Selle perioodi kohta andmeid ei leitud</div>';
+        return;
+      }
+
+      let html = '';
+      data.categories.forEach(category => {
+        html += `
+          <div class="category-accordion">
+            <div class="category-header" onclick="toggleCategoryAccordion(this)">
+              <strong>${escapeHtml(category.name)}</strong>
+              <div style="display: flex; align-items: center; gap: 12px;">
+                <span>${money2(category.total)}</span>
+                <span style="font-size: 12px;">▼</span>
+              </div>
+            </div>
+            <div class="category-body">
+              ${category.items.map(item => `
+                <div class="category-item">
+                  <div class="category-item-left">
+                    <div class="category-item-title">${escapeHtml(item.description || '(Ilma kirjelduseta)')}</div>
+                    <div class="category-item-meta">${escapeHtml(item.subcategory)} • ${escapeHtml(item.date)}</div>
+                  </div>
+                  <div class="category-item-amount">${money2(item.amount)}</div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      });
+
+      container.innerHTML = html;
+    }
+
+    function toggleCategoryAccordion(header) {
+      const body = header.nextElementSibling;
+      const arrow = header.querySelector('span:last-child');
+     
+      body.classList.toggle('open');
+      arrow.textContent = body.classList.contains('open') ? '▲' : '▼';
+    }
+
+
+    /* ===== SELECT HELPERS ===== */
+    function fillSub(sel, cat, selected=''){
+      const el = document.querySelector(sel);
+      const opts = (SUBS[(cat||'').toUpperCase()]||[]);
+      el.innerHTML = ['<option value="">Vali…</option>'].concat(opts.map(s=>`<option ${s===selected?'selected':''}>${s}</option>`)).join('');
+    }
+
+    /* ===== UTIL ===== */
+function jsonp(url){
+  return new Promise((resolve,reject)=>{
+    const cb = 'cb_' + Math.random().toString(36).slice(2);
+    const s  = document.createElement('script');
+    s.src = url + (url.includes('?') ? '&' : '?') + 'callback=' + cb;
+    s.onerror = ()=>{ cleanup(); reject(new Error('JSONP viga')); };
+    window[cb] = (data)=>{ cleanup(); resolve(data); };
+    function cleanup(){ try { delete window[cb]; } catch(e){} s.remove(); }
+    document.head.appendChild(s);
+  });
+}
+function setText(id,txt){ const el=document.getElementById(id); if(el) el.textContent=txt; }
+function setVal(id,val){ const el=document.getElementById(id); if(el) el.value=val; }
+function getVal(id){ const el=document.getElementById(id); return el ? el.value : ''; }
+function escapeHtml(s){ return (s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
+/* --- raha --- */
+// suured näidud (gauge jms): 0 kohta
+function money0(v){
+  return (Number(v)||0).toLocaleString('et-EE',{
+    style:'currency',currency:'EUR',minimumFractionDigits:0,maximumFractionDigits:0
+  });
+}
+// tehingute read: 2 kohta
+function money2(v){
+  return (Number(v)||0).toLocaleString('et-EE',{
+    minimumFractionDigits:2,maximumFractionDigits:2
+  }) + ' €';
+}
+// tagurpidi ühilduvus (vanad kohad kutsuvad money())
+function money(v){ return money0(v); }
+
+/* --- kuupäevad --- */
+function formatDateEt(d){
+  const dd=String(d.getDate()).padStart(2,'0');
+  const mm=String(d.getMonth()+1).padStart(2,'0');
+  const yy=d.getFullYear();
+  return `${dd}.${mm}.${yy}`;
+}
+
+// ISO (yyyy-MM-dd) või Date-parsitav string -> ET (dd.MM.yyyy)
+function toEtDateStr(s){
+  if(!s) return '';
+  if(/^\d{4}-\d{2}-\d{2}$/.test(s)){ const [y,m,d]=s.split('-'); return `${d}.${m}.${y}`; }
+  const d=new Date(s);
+  if(!isNaN(d.getTime())) return formatDateEt(d);
+  return s;
+}
+// Alias tagurpidi ühilduvuseks
+function toEtFromIso(s){ return toEtDateStr(s); }
+
+// ET (dd.MM.yyyy) -> ISO (yyyy-MM-dd)
+function toIsoFromEt(s){
+  const m=String(s).match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+  if(m) return `${m[3]}-${m[2]}-${m[1]}`;
+  return s;
+}
+
+
+</script>
+</body>
+</html>
