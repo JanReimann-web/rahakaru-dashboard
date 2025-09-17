@@ -429,7 +429,7 @@
       buildArchive(archiveData);
 
       // Chart
-      renderCatsChart(cats);
+      renderCatsChart(window(cats));
     }
 
     /* ===== RECENT & ARCHIVE ===== */
@@ -815,6 +815,74 @@ function toIsoFromEt(s){
   return s;
 }
 
+  // --- Kuu akna helperid: 2 eelmist + käesolev + 3 järgmist (kokku 6) ---
+const CAT_NAMES = ['Auto','Söök','Robin','Korter','Muud']; // hoia kooskõlas legendiga
+
+function monthKeyFromItem(it){
+  // eelistame struktuurivälju
+  if (it.key && /^\d{4}-\d{2}$/.test(it.key)) return it.key;
+  if (it.year && it.month) return `${it.year}-${String(it.month).padStart(2,'0')}`;
+
+  // proovime labelist (EE/EN lühendid)
+  const mMap = {
+    'jan':1,'veb':2,'veeb':2,'feb':2,'mär':3,'mar':3,'apr':4,'mai':5,'may':5,'jun':6,'juu':7,'jul':7,'aug':8,'sep':9,'okt':10,'oct':10,'nov':11,'dets':12,'det':12,'dec':12
+  };
+  const lbl = String(it.labelShort || it.label || '').toLowerCase().trim();
+  const yearMatch = lbl.match(/(20\d{2})/);
+  const y = yearMatch ? parseInt(yearMatch[1],10) : new Date().getFullYear();
+  const mKey = Object.keys(mMap).find(k => lbl.includes(k));
+  if (mKey) return `${y}-${String(mMap[mKey]).padStart(2,'0')}`;
+
+  // kui ei õnnestu, kasuta praegust
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+}
+
+function monthKeyAdd(key, delta){
+  const [y,m] = key.split('-').map(Number);
+  const d = new Date(y, m-1 + delta, 1);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+}
+
+function monthLabelShort(key){
+  const [y,m] = key.split('-').map(Number);
+  const ms = ['Jan','Veeb','Mär','Apr','Mai','Juun','Juul','Aug','Sept','Okt','Nov','Dets'];
+  return ms[m-1];
+}
+
+function emptyTotals(){
+  const t = {};
+  CAT_NAMES.forEach(n => t[n] = 0);
+  return t;
+}
+
+function normalizeNumber(v){
+  if (typeof v === 'number') return v;
+  const n = parseFloat(String(v ?? '0').replace(',', '.'));
+  return isNaN(n) ? 0 : n;
+}
+
+function windowCats(rawCats){
+  // tee map kuudest
+  const map = {};
+  (rawCats || []).forEach(it => {
+    const key = monthKeyFromItem(it);
+    const totals = {};
+    CAT_NAMES.forEach(n => {
+      // proovi eri kirjapilte
+      const v = it.totals?.[n] ?? it.totals?.[n.toUpperCase()] ?? it.totals?.[n.toLowerCase()];
+      totals[n] = normalizeNumber(v);
+    });
+    map[key] = { key, labelShort: monthLabelShort(key), totals };
+  });
+
+  // ehita 2 eelmist + käesolev + 3 järgmist
+  const now = new Date();
+  const curKey = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  const keys = [-2,-1,0,1,2,3].map(d => monthKeyAdd(curKey, d));
+
+  return keys.map(k => map[k] || { key:k, labelShort: monthLabelShort(k), totals: emptyTotals() });
+}
 
 </script>
 </body>
