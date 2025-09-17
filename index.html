@@ -509,7 +509,7 @@
       setVal('edit_id', tx.id||'');
       setVal('edit_amount', (Number(tx.amount)||0).toString().replace('.',','));
       setVal('edit_date', toEtFromIso(tx.date||''));
-      setVal('edit_cat', (tx.category||'').toUpperCase());
+      setVal('edit_cat', (tx.category||''));
       fillSub('#edit_sub', (tx.category||'').toUpperCase(), tx.subcategory||'');
       setVal('edit_desc', tx.description||'');
      
@@ -752,7 +752,8 @@
     /* ===== SELECT HELPERS ===== */
     function fillSub(sel, cat, selected=''){
       const el = document.querySelector(sel);
-      const opts = (SUBS[(cat||'').toUpperCase()]||[]);
+      const key = (cat||'');
+      const opts = (SUBS[key] || SUBS[key.toUpperCase?.()] || SUBS[key.toLowerCase?.()] || []);
       el.innerHTML = ['<option value="">Vali…</option>'].concat(opts.map(s=>`<option ${s===selected?'selected':''}>${s}</option>`)).join('');
     }
 
