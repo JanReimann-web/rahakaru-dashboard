@@ -510,7 +510,7 @@
       setVal('edit_amount', (Number(tx.amount)||0).toString().replace('.',','));
       setVal('edit_date', toEtFromIso(tx.date||''));
       setVal('edit_cat', (tx.category||''));
-      fillSub('#edit_sub', (tx.category||'').toUpperCase(), tx.subcategory||'');
+      fillSub('#edit_sub', (tx.category||''), tx.subcategory||'');
       setVal('edit_desc', tx.description||'');
      
       // Näita olemasolevat kviitungit
