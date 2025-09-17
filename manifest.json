@@ -2,7 +2,7 @@
   "name": "Rahakaru - Isiklik Eelarve Dashboard",
   "short_name": "Rahakaru",
   "description": "Isiklik eelarve ja kulude jälgimise rakendus",
-  "start_url": "/",
+  "start_url": "./",
   "display": "fullscreen",
   "background_color": "#1e293b",
   "theme_color": "#1e293b",

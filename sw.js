@@ -1,11 +1,11 @@
 // Rahakaru Service Worker
 const CACHE_NAME = 'rahakaru-v1';
 const urlsToCache = [
-  '/',
-  '/index.html',
-  '/icon.svg',
-  '/icon.png',
-  '/manifest.json'
+  './',
+  './index.html',
+  './icon.svg',
+  './icon.png',
+  './manifest.json'
 ];
 
 // Install
